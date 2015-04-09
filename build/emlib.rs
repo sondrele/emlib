@@ -1,3 +1,4 @@
+#![feature(path_ext)]
 extern crate gcc;
 
 use gcc::Config;
@@ -6,6 +7,8 @@ use std::env;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
+use std::path::Path;
+use std::process::Command;
 
 #[cfg(feature = "dk3750")] use dk3750 as kit;
 #[cfg(feature = "stk3700")] use stk3700 as kit;
@@ -14,7 +17,38 @@ use std::io::prelude::*;
 #[cfg(feature = "dk3750")] mod dk3750;
 #[cfg(feature = "stk3700")] mod stk3700;
 
+pub fn init_emf32_common() {
+    println!("{:?}", env::var("OUT_DIR"));
+    // env::set_current_dir(&env::var("OUT_DIR").unwrap()).ok();
+
+    if !Path::new("efm32").is_dir() {
+        println!("Updating efm32-common in: {:?}", env::current_dir().ok());
+        let mut init_emf32_common = Command::new("git");
+        init_emf32_common
+            .arg("submodule")
+            .arg("update")
+            .arg("--init");
+
+        run(&mut init_emf32_common);
+    }
+}
+
+fn run(cmd: &mut Command) {
+    println!("Running: {:?}", cmd);
+    match cmd.status() {
+        Ok(status) => {
+            if !status.success() {
+                panic!("Nonzero exit status: {}", status)
+            }
+        }
+        Err(e) => {
+            panic!("Failed to spawn process: {}", e)
+        }
+    };
+}
+
 fn main() {
+    init_emf32_common();
     compile_emlib_library();
 
     match write_emlib_hash() {
